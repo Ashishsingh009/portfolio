@@ -1,237 +1,46 @@
-import { useState } from 'react'
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  BrainCircuit,
-  ChevronRight,
-  DatabaseZap,
-  GitFork,
-  Layers3,
-  Mail,
-  Menu,
-  ServerCog,
-  Sparkles,
-  X,
-  type LucideIcon,
-} from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { ArrowDownRight, ArrowUpRight, ChevronRight, ExternalLink, GitFork, Mail, Menu, Sparkles, X } from 'lucide-react'
 import { motion, useReducedMotion } from 'framer-motion'
+import { career, projects, siteConfig, skillGroups, verifiedWork, type Project } from './data'
 
-const EMAIL = 'aashish2k2@gmail.com'
+const missingLinkedIn = '[ADD LINKEDIN URL]'
+const navItems = [{ label: 'Projects', href: '/projects' }, { label: 'About', href: '/about' }, { label: 'Notes', href: '/notes' }, { label: 'Contact', href: '/contact' }]
+const sectionReveal = { initial: { opacity: 0, y: 22 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, amount: 0.16 }, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] as const } }
 
-const navItems = [
-  { label: 'Work', href: '#work' },
-  { label: 'Expertise', href: '#expertise' },
-  { label: 'Experience', href: '#experience' },
-  { label: 'Contact', href: '#contact' },
-]
-
-const highlights = [
-  { value: '14+', label: 'years engineering' },
-  { value: '100M+', label: 'users supported' },
-  { value: '99.9%', label: 'uptime target' },
-]
-
-type WorkCard = {
-  title: string
-  eyebrow: string
-  description: string
-  icon: LucideIcon
-  className: string
-  tags: string[]
-  accent: string
+function Seo({ title, description, type = 'website' }: { title: string; description: string; type?: string }) {
+  useEffect(() => {
+    document.title = title
+    const setMeta = (name: string, content: string, property = false) => { const selector = property ? `meta[property="${name}"]` : `meta[name="${name}"]`; let node = document.head.querySelector(selector) as HTMLMetaElement | null; if (!node) { node = document.createElement('meta'); node.setAttribute(property ? 'property' : 'name', name); document.head.append(node) }; node.content = content }
+    setMeta('description', description); setMeta('og:title', title, true); setMeta('og:description', description, true); setMeta('og:type', type, true); setMeta('og:url', window.location.href, true); setMeta('twitter:card', 'summary_large_image'); setMeta('twitter:title', title); setMeta('twitter:description', description)
+    let canonical = document.head.querySelector('link[rel="canonical"]') as HTMLLinkElement | null; if (!canonical) { canonical = document.createElement('link'); canonical.rel = 'canonical'; document.head.append(canonical) }; canonical.href = siteConfig.canonical + (window.location.pathname.includes('/projects/') ? `projects/${window.location.pathname.split('/projects/')[1]}` : '')
+  }, [description, title, type])
+  return null
 }
 
-const workCards: WorkCard[] = [
-  {
-    title: 'Verizon Cloud',
-    eyebrow: 'Selected case study',
-    description:
-      'Designed core cloud synchronization architecture, data contracts, and sync logic for a digital-life platform serving more than 100 million users.',
-    icon: DatabaseZap,
-    className: 'md:col-span-2 md:row-span-2',
-    tags: ['Cloud sync', 'Android architecture', '100M+ scale'],
-    accent: 'from-violet-400/30 via-fuchsia-400/10 to-transparent',
-  },
-  {
-    title: 'Performance Engineering',
-    eyebrow: 'Capability',
-    description: 'Root-cause analysis for ANRs, memory leaks, and concurrency issues in production Android systems.',
-    icon: ServerCog,
-    className: 'md:col-span-1',
-    tags: ['ANR reduction', 'Memory', 'Observability'],
-    accent: 'from-cyan-300/25 via-sky-400/10 to-transparent',
-  },
-  {
-    title: 'Architecture Authority',
-    eyebrow: 'Capability',
-    description: 'Technical roadmaps, app layouts, data schemas, and durable MVVM/MVI patterns that help teams ship confidently.',
-    icon: Layers3,
-    className: 'md:col-span-1',
-    tags: ['HLD', 'MVVM/MVI', 'Tech strategy'],
-    accent: 'from-amber-200/20 via-orange-300/10 to-transparent',
-  },
-  {
-    title: 'Agentic Systems',
-    eyebrow: 'Exploration',
-    description: 'Researching LLMs, Google ADK, Koog, and agentic workflows for the next generation of mobile experiences.',
-    icon: BrainCircuit,
-    className: 'md:col-span-2',
-    tags: ['LLMs', 'Google ADK', 'Koog'],
-    accent: 'from-emerald-300/20 via-teal-300/10 to-transparent',
-  },
-]
+function navigate(href: string) { const base = window.location.pathname.startsWith('/portfolio') ? '/portfolio' : ''; const target = href === '/' ? `${base}/` : `${base}${href}`; window.history.pushState({}, '', target); window.dispatchEvent(new PopStateEvent('popstate')); window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
-const skillGroups = [
-  {
-    title: 'Android systems',
-    skills: ['Kotlin', 'Jetpack Compose', 'Android Jetpack', 'MVVM / MVP', 'Flow & Coroutines'],
-  },
-  {
-    title: 'Quality & scale',
-    skills: ['TDD', 'JUnit & Espresso', 'Performance optimization', 'Documentation', 'Agile delivery'],
-  },
-  {
-    title: 'AI exploration',
-    skills: ['Large language models', 'Agentic workflows', 'Google ADK', 'Koog', 'Multi-agent systems'],
-  },
-]
-
-const career = [
-  ['2020 — Present', 'Senior Software Engineer III', 'Synchronoss Technology'],
-  ['2019 — 2020', 'Senior Consultant', 'Xebia IT Architect India'],
-  ['2018 — 2019', 'Android Team Lead', 'Wipro'],
-  ['2017 — 2018', 'Senior Software Engineer', 'Source Soft Solutions'],
-  ['2015 — 2017', 'Senior Software Engineer', 'Prospus Consulting'],
-  ['2012 — 2015', 'Software Engineer', 'Xantatech Pvt Ltd'],
-] as const
-
-const sectionReveal = {
-  initial: { opacity: 0, y: 22 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.2 },
-  transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const },
+function Header() {
+  const [open, setOpen] = useState(false)
+  useEffect(() => { const close = (event: KeyboardEvent) => event.key === 'Escape' && setOpen(false); window.addEventListener('keydown', close); return () => window.removeEventListener('keydown', close) }, [])
+  const go = (href: string) => (event: React.MouseEvent<HTMLAnchorElement>) => { event.preventDefault(); setOpen(false); navigate(href) }
+  return <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4 sm:px-6"><nav className="mx-auto flex max-w-6xl items-center justify-between rounded-2xl border border-white/10 bg-stone-950/75 px-4 py-3 shadow-2xl shadow-black/20 backdrop-blur-xl sm:px-5" aria-label="Primary navigation"><a className="group flex items-center gap-2 text-sm font-semibold tracking-tight text-stone-100" href="/" onClick={go('/')}><span className="grid h-7 w-7 place-items-center rounded-lg bg-stone-100 text-xs font-bold text-stone-950">AS</span>{siteConfig.name}</a><div className="hidden items-center gap-1 md:flex">{navItems.map((item) => <a key={item.href} className="nav-link" href={item.href} onClick={go(item.href)}>{item.label}</a>)}</div><a className="button button-small hidden sm:inline-flex" href={`mailto:${siteConfig.email}`}>Let's talk <ArrowUpRight size={15} aria-hidden="true" /></a><button className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 text-stone-100 md:hidden" type="button" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? <X size={18} /> : <Menu size={18} />}</button></nav>{open && <div className="mx-auto mt-2 max-w-6xl rounded-2xl border border-white/10 bg-stone-950/95 p-2 backdrop-blur-xl md:hidden">{navItems.map((item) => <a key={item.href} className="block rounded-xl px-4 py-3 text-sm text-stone-300 hover:bg-white/5 hover:text-white" href={item.href} onClick={go(item.href)}>{item.label}</a>)}</div>}</header>
 }
 
-function SectionTitle({ eyebrow, title, copy }: { eyebrow: string; title: string; copy?: string }) {
-  return (
-    <div className="max-w-2xl">
-      <p className="eyebrow">{eyebrow}</p>
-      <h2 className="mt-4 text-4xl font-medium tracking-[-0.05em] text-stone-100 sm:text-5xl">{title}</h2>
-      {copy && <p className="mt-5 text-base leading-7 text-stone-400 sm:text-lg">{copy}</p>}
-    </div>
-  )
-}
+function Layout({ children }: { children: ReactNode }) { return <div className="min-h-screen overflow-x-clip bg-[#0a0a0a] text-stone-100 selection:bg-violet-300 selection:text-stone-950"><a className="skip-link" href="#main-content">Skip to content</a><Header />{children}<footer className="px-5 py-8 sm:px-8 lg:px-12"><div className="mx-auto flex max-w-6xl flex-col gap-3 border-t border-white/10 pt-6 text-xs text-stone-500 sm:flex-row sm:items-center sm:justify-between"><p>© {new Date().getFullYear()} {siteConfig.name}. Built with intent.</p><div className="flex gap-4"><a className="hover:text-stone-300" href={siteConfig.github} target="_blank" rel="noreferrer">GitHub <span className="sr-only">(opens in a new tab)</span></a><a className="hover:text-stone-300" href={`mailto:${siteConfig.email}`}>Email</a></div></div></footer></div> }
 
-function App() {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [glow, setGlow] = useState({ x: 50, y: 30 })
-  const reducedMotion = useReducedMotion()
+function Hero() { const reduced = useReducedMotion(); const [glow, setGlow] = useState({ x: 50, y: 30 }); return <section className="relative isolate flex min-h-screen items-end overflow-hidden px-5 pb-16 pt-32 sm:px-8 sm:pb-20 lg:px-12" onPointerMove={(event) => { if (!reduced) { const b = event.currentTarget.getBoundingClientRect(); setGlow({ x: ((event.clientX - b.left) / b.width) * 100, y: ((event.clientY - b.top) / b.height) * 100 }) } }}><div className="pointer-events-none absolute inset-0 -z-10" style={{ background: `radial-gradient(600px circle at ${glow.x}% ${glow.y}%, rgba(139,92,246,.17), transparent 48%)` }} /><div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(260px,360px)] lg:gap-16"><motion.div initial={reduced ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .7, ease: [0.16, 1, .3, 1] as const }}><p className="eyebrow mb-6">ANDROID SYSTEMS × GENERATIVE AI × AGENTIC WORKFLOWS</p><h1 className="max-w-5xl text-balance text-5xl font-medium leading-[.96] tracking-[-.07em] text-stone-100 sm:text-7xl lg:text-[5.9rem]">AI Engineer building <span className="text-stone-500">reliable agentic systems</span> and <em className="font-normal text-violet-200">intelligent mobile experiences.</em></h1><p className="mt-8 max-w-2xl text-lg leading-8 text-stone-400 sm:text-xl">I combine extensive Android and system design experience with Generative AI, RAG, LLM applications, and agentic workflows to build useful, measurable, production-oriented products.</p><p className="mt-5 text-sm text-stone-500">Senior Android engineer transitioning into AI engineering · {siteConfig.location} · 100M+ users supported</p><div className="mt-9 flex flex-wrap items-center gap-3"><a className="button" href="/projects" onClick={(e) => { e.preventDefault(); navigate('/projects') }}>Explore AI projects <ArrowDownRight size={16} aria-hidden="true" /></a><a className="button button-quiet" href={`mailto:${siteConfig.email}`}>Contact me about roles <Mail size={16} aria-hidden="true" /></a></div><div className="mt-7 flex flex-wrap gap-4 text-sm text-stone-400"><a className="hover:text-white" href={siteConfig.github} target="_blank" rel="noreferrer">GitHub <span className="sr-only">(opens in a new tab)</span></a><span aria-hidden="true">·</span><span className="text-stone-600">{missingLinkedIn}</span><span aria-hidden="true">·</span><a className="hover:text-white" href={siteConfig.resume}>Résumé</a></div></motion.div><motion.figure className="relative mx-auto hidden w-full max-w-[360px] lg:block" initial={reduced ? false : { opacity: 0, scale: .96, y: 18 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ delay: .18, duration: .8, ease: [0.16, 1, .3, 1] as const }}><div className="absolute -inset-5 rounded-[2.5rem] bg-violet-400/10 blur-3xl" aria-hidden="true" /><div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-white/[.06] p-2 shadow-2xl shadow-violet-950/30 backdrop-blur-sm"><img className="aspect-[398/460] w-full rounded-[1.55rem] object-cover" src="./ashish-singh.png" width="398" height="460" decoding="async" alt="Ashish Singh, AI Engineer and Android systems architect" /><figcaption className="absolute bottom-5 left-5 right-5 rounded-xl border border-white/15 bg-stone-950/70 px-3 py-2 text-xs text-stone-300 backdrop-blur-md">AI Engineer · Android Architect</figcaption></div></motion.figure></div></section> }
 
-  const reveal = reducedMotion
-    ? { initial: false }
-    : sectionReveal
+function SectionTitle({ eyebrow, title, copy, level = 2 }: { eyebrow: string; title: string; copy?: string; level?: 1 | 2 }) { const Heading = level === 1 ? 'h1' : 'h2'; return <div className="max-w-3xl"><p className="eyebrow">{eyebrow}</p><Heading className="mt-4 text-4xl font-medium tracking-[-.05em] text-stone-100 sm:text-5xl">{title}</Heading>{copy && <p className="mt-5 text-base leading-7 text-stone-400 sm:text-lg">{copy}</p>}</div> }
+function Career() { return <motion.section className="section-shell pt-0" {...sectionReveal}><SectionTitle eyebrow="04 / Career" title="Fourteen years of building forward." copy="Hands-on mobile engineering, technical leadership, and platform-scale systems work provide the foundation for my AI transition." /><div className="mt-10 border-t border-white/10">{career.map(([period, role, company]) => <div key={`${period}-${company}`} className="grid gap-2 border-b border-white/10 py-5 sm:grid-cols-[10rem_1fr_auto] sm:items-center sm:gap-6 sm:px-3"><p className="text-xs text-stone-500">{period}</p><h2 className="text-base font-medium text-stone-200">{role}</h2><p className="text-sm text-stone-400">{company}</p></div>)}</div></motion.section> }
+function Contact() { return <motion.section id="contact" className="px-5 pb-5 pt-8 sm:px-8 lg:px-12" {...sectionReveal}><div className="mx-auto max-w-6xl rounded-3xl border border-violet-200/15 bg-white/[.05] px-6 py-12 sm:px-10 lg:px-14"><Sparkles className="text-violet-200" size={25} aria-hidden="true" /><h2 className="mt-6 max-w-3xl text-4xl font-medium tracking-[-.06em] sm:text-6xl">Building an AI product, mobile platform, or agent workflow?</h2><p className="mt-5 max-w-xl text-base leading-7 text-stone-400 sm:text-lg">I’m open to AI Engineer, AI Agent Engineer, Android Architect, and AI-powered mobile product roles.</p><div className="mt-8 flex flex-wrap gap-3"><a className="button" href={`mailto:${siteConfig.email}`}><Mail size={17} aria-hidden="true" />Start a conversation</a><a className="button button-quiet" href={siteConfig.github} target="_blank" rel="noreferrer"><GitFork size={17} aria-hidden="true" />GitHub <span className="sr-only">(opens in a new tab)</span></a></div></div></motion.section> }
 
-  return (
-    <div className="min-h-screen overflow-x-clip bg-[#0a0a0a] text-stone-100 selection:bg-violet-300 selection:text-stone-950">
-      <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4 sm:px-6">
-        <nav className="mx-auto flex max-w-6xl items-center justify-between rounded-2xl border border-white/10 bg-stone-950/65 px-4 py-3 shadow-2xl shadow-black/20 backdrop-blur-xl sm:px-5" aria-label="Primary navigation">
-          <a className="group flex items-center gap-2 text-sm font-semibold tracking-tight text-stone-100" href="#top" onClick={() => setMenuOpen(false)}>
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-stone-100 text-xs font-bold text-stone-950 transition-transform duration-300 group-hover:rotate-6">AS</span>
-            Ashish Singh
-          </a>
-          <div className="hidden items-center gap-1 md:flex">
-            {navItems.map((item) => (
-              <a key={item.href} className="nav-link" href={item.href}>{item.label}</a>
-            ))}
-          </div>
-          <a className="button button-small hidden sm:inline-flex" href={`mailto:${EMAIL}`}>
-            Let's talk <ArrowUpRight size={15} aria-hidden="true" />
-          </a>
-          <button className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 text-stone-100 md:hidden" type="button" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
-            {menuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
-        </nav>
-        {menuOpen && (
-          <div className="mx-auto mt-2 max-w-6xl rounded-2xl border border-white/10 bg-stone-950/95 p-2 backdrop-blur-xl md:hidden">
-            {navItems.map((item) => (
-              <a key={item.href} className="block rounded-xl px-4 py-3 text-sm text-stone-300 hover:bg-white/5 hover:text-white" href={item.href} onClick={() => setMenuOpen(false)}>{item.label}</a>
-            ))}
-          </div>
-        )}
-      </header>
+function HomePage() { const reduced = useReducedMotion(); const reveal = reduced ? { initial: false } : sectionReveal; return <Layout><Seo title="Ashish Singh — AI Engineer, AI Agent Engineer, Android Architect" description="Ashish Singh is an Android Architect transitioning into AI engineering, building reliable agentic systems, RAG applications, and intelligent mobile experiences." /><main id="main-content"><Hero /><motion.section id="work" className="section-shell" {...reveal}><SectionTitle eyebrow="01 / Selected work" title="Verified systems experience, with AI work in progress." copy="The production case study is grounded in résumé-backed Android work. AI projects are labeled as placeholders until their evidence is supplied." /><div className="mt-10 grid auto-rows-[minmax(220px,auto)] gap-4 md:grid-cols-3">{verifiedWork.map((card, i) => <motion.article key={card.title} whileHover={reduced ? undefined : { y: -5 }} className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[.035] p-6 backdrop-blur-sm transition-colors hover:border-white/25 sm:p-7 ${i === 0 ? 'md:col-span-2 md:row-span-2' : ''}`}><div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${card.accent} opacity-60`} /><div className="relative flex h-full flex-col"><div className="flex items-start justify-between"><p className="eyebrow">{card.eyebrow}</p><card.icon size={24} className="text-stone-300" aria-hidden="true" /></div><div className="mt-auto pt-14"><h2 className="text-2xl font-medium tracking-[-.04em]">{card.title}</h2><p className="mt-3 text-sm leading-6 text-stone-400">{card.description}</p><div className="mt-5 flex flex-wrap gap-2">{card.tags.map((tag) => <span key={tag} className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-stone-300">{tag}</span>)}</div>{card.href && <a className="relative z-10 mt-6 inline-flex items-center gap-2 text-sm font-medium text-violet-200 hover:text-white" href={card.href} target="_blank" rel="noreferrer">View on Play Store <ExternalLink size={14} aria-hidden="true" /><span className="sr-only">(opens in a new tab)</span></a>}</div></div></motion.article>)}</div></motion.section><motion.section className="section-shell pt-0" {...reveal}><div className="rounded-3xl border border-white/10 bg-white/[.03] p-6 sm:p-10 lg:p-12"><SectionTitle eyebrow="02 / AI direction" title="Building AI systems with production constraints in mind." copy="My Android background gives me a practical advantage: I understand product surfaces, device constraints, offline behavior, performance budgets, privacy boundaries, observability, and the difference between a compelling demo and a dependable product." /><div className="mt-12 grid gap-8 sm:grid-cols-2">{skillGroups.map((group, i) => <div key={group.title} className="border-t border-white/10 pt-5"><group.icon size={20} className="text-violet-200" aria-hidden="true" /><p className="mt-4 text-lg font-medium">{group.title}</p><p className="mt-2 text-sm leading-6 text-stone-400">{group.copy}</p><ul className="mt-4 flex flex-wrap gap-2">{group.skills.map((skill) => <li key={skill} className="rounded-full bg-white/[.06] px-2.5 py-1 text-xs text-stone-300">{skill}</li>)}</ul><span className="mt-5 block text-xs text-stone-600">0{i + 1}</span></div>)}</div></div></motion.section><motion.section className="section-shell pt-0" {...reveal}><SectionTitle eyebrow="03 / Engineering approach" title="Useful, testable, observable, honest about limitations." /><div className="mt-10 grid gap-4 md:grid-cols-3">{['Architecture before orchestration', 'Evaluation before confidence', 'Privacy and failure recovery by design'].map((title) => <div key={title} className="rounded-2xl border border-white/10 p-6"><ChevronRight className="text-violet-200" size={18} aria-hidden="true" /><h2 className="mt-8 text-xl font-medium">{title}</h2><p className="mt-3 text-sm leading-6 text-stone-400">[ADD SUPPORTING EXAMPLE]</p></div>)}</div></motion.section><Career /><Contact /></main></Layout> }
 
-      <main id="top">
-        <section className="relative isolate flex min-h-screen items-end overflow-hidden px-5 pb-16 pt-32 sm:px-8 sm:pb-20 lg:px-12" onPointerMove={(event) => {
-          if (!reducedMotion) {
-            const bounds = event.currentTarget.getBoundingClientRect()
-            setGlow({ x: ((event.clientX - bounds.left) / bounds.width) * 100, y: ((event.clientY - bounds.top) / bounds.height) * 100 })
-          }
-        }}>
-          <div className="pointer-events-none absolute inset-0 -z-10 opacity-90" style={{ background: `radial-gradient(600px circle at ${glow.x}% ${glow.y}%, rgba(139, 92, 246, 0.20), transparent 48%)` }} />
-          <div className="pointer-events-none absolute -right-[18rem] top-12 -z-10 h-[34rem] w-[34rem] rounded-full bg-fuchsia-400/10 blur-[120px]" />
-          <div className="pointer-events-none absolute bottom-0 left-[10%] -z-10 h-56 w-2/3 bg-gradient-to-t from-violet-600/10 to-transparent blur-3xl" />
-          <div className="mx-auto w-full max-w-6xl">
-            <motion.div initial={reducedMotion ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] as const }}>
-              <p className="eyebrow mb-6"><span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_16px_2px_rgba(110,231,183,.65)]" />Available for meaningful work</p>
-              <h1 className="max-w-5xl text-balance text-5xl font-medium leading-[0.96] tracking-[-0.07em] text-stone-100 sm:text-7xl lg:text-[6.5rem]">
-                Android systems, <span className="text-stone-500">built for</span> <em className="font-normal text-violet-200">scale.</em>
-              </h1>
-              <p className="mt-8 max-w-xl text-lg leading-8 text-stone-400 sm:text-xl">Android Architect and systems thinker. I build resilient mobile platforms, untangle production complexity, and explore what agentic AI makes possible.</p>
-              <div className="mt-9 flex flex-wrap items-center gap-3">
-                <a className="button" href={`mailto:${EMAIL}`}><Mail size={17} aria-hidden="true" />Start a conversation <ArrowUpRight size={16} aria-hidden="true" /></a>
-                <a className="button button-quiet" href="#work">Explore selected work <ArrowDownRight size={16} aria-hidden="true" /></a>
-              </div>
-            </motion.div>
-            <motion.div className="mt-16 grid max-w-3xl grid-cols-3 border-t border-white/10 pt-6 sm:mt-24" initial={reducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35, duration: 0.7 }}>
-              {highlights.map((item) => <div key={item.label}><p className="text-2xl font-medium tracking-[-0.04em] text-stone-100 sm:text-3xl">{item.value}</p><p className="mt-1 text-xs leading-4 text-stone-500 sm:text-sm">{item.label}</p></div>)}
-            </motion.div>
-          </div>
-        </section>
+function ProjectsPage() { return <Layout><Seo title="AI Projects — Ashish Singh" description="Placeholder-safe case studies for AI agents, RAG, intelligent Android experiences, and AI-assisted test automation." /><main id="main-content" className="section-shell pt-40"><SectionTitle level={1} eyebrow="Projects" title="Selected AI systems and mobile intelligence experiments." copy="Each case study explains the problem, architecture, decisions, evaluation method, limitations, and what I would improve next." /><div className="mt-12 grid gap-4 md:grid-cols-2">{projects.map((project) => <ProjectCard key={project.slug} project={project} />)}</div></main></Layout> }
+function ProjectCard({ project }: { project: Project }) { return <article className="group rounded-3xl border border-white/10 bg-white/[.035] p-6 transition hover:-translate-y-1 hover:border-white/25 sm:p-8"><div className="flex items-start justify-between gap-6"><div><p className="eyebrow">{project.status} · evidence in progress</p><h2 className="mt-4 text-2xl font-medium tracking-[-.04em]">{project.title}</h2></div><project.icon className="text-violet-200" size={24} aria-hidden="true" /></div><p className="mt-4 text-sm leading-6 text-stone-400">{project.summary}</p><div className="mt-6 flex flex-wrap gap-2">{project.tags.map((tag) => <span key={tag} className="rounded-full bg-white/[.06] px-2.5 py-1 text-xs text-stone-300">{tag}</span>)}</div><a className="button button-quiet mt-8" href={`/projects/${project.slug}`} onClick={(e) => { e.preventDefault(); navigate(`/projects/${project.slug}`) }}>Read case study <ArrowUpRight size={15} aria-hidden="true" /></a></article> }
+function CaseStudyPage({ project }: { project: Project }) { const fields: Array<[string, string]> = [['Problem', project.problem], ['Users and use case', project.usersAndUseCase], ['Solution', project.solution], ['Architecture', project.architecture], ['My specific contribution', project.contribution], ['Model and prompt strategy', project.modelStrategy], ['Retrieval or tool-use design', project.retrievalOrTools], ['Evaluation approach', project.evaluation], ['Results and metrics', project.results], ['Latency and cost considerations', project.latencyAndCost], ['Failure modes and limitations', project.limitations], ['Security and privacy considerations', project.securityAndPrivacy], ['What I would improve next', project.nextImprovements]]; return <Layout><Seo title={`${project.title} — Ashish Singh`} description={project.summary} type="article" /><main id="main-content" className="section-shell pt-40"><a className="text-sm text-stone-500 hover:text-white" href="/projects" onClick={(e) => { e.preventDefault(); navigate('/projects') }}>← All projects</a><p className="eyebrow mt-12">{project.status} · evidence in progress</p><h1 className="mt-4 max-w-4xl text-5xl font-medium tracking-[-.06em] sm:text-7xl">{project.title}</h1><p className="mt-6 max-w-2xl text-xl leading-8 text-stone-400">{project.summary}</p><div className="mt-12 grid gap-4 md:grid-cols-2">{fields.map(([label, value]) => <section key={label} className="rounded-2xl border border-white/10 bg-white/[.03] p-6"><h2 className="text-lg font-medium">{label}</h2><p className="mt-3 whitespace-pre-line text-sm leading-6 text-stone-400">{value}</p></section>)}</div><div className="mt-10 flex flex-wrap gap-3">{project.githubUrl ? <a className="button" href={project.githubUrl} target="_blank" rel="noreferrer">GitHub</a> : <span className="button button-quiet text-stone-500">[ADD GITHUB LINK]</span>}{project.demoUrl ? <a className="button button-quiet" href={project.demoUrl} target="_blank" rel="noreferrer">Live demo</a> : <span className="button button-quiet text-stone-500">[ADD LIVE DEMO]</span>}</div></main></Layout> }
+function SimplePage({ kind }: { kind: 'about' | 'notes' | 'contact' }) { const content = { about: ['About', 'An Android architect moving deliberately into AI engineering.', 'I have spent 14+ years building Android systems, debugging complex production failures, and shaping architecture for large-scale mobile products. My current work extends that foundation into Generative AI, LLM applications, RAG, agentic workflows, MCP, and AI-powered Android experiences.'], notes: ['Engineering notes', 'Evidence over hype.', 'Notes will document RAG quality, agent evaluation, Android AI constraints, MCP workflows, and AI-assisted test automation. Each note will state whether it is a prototype, experiment, or production observation.'], contact: ['Contact', 'Building an AI product, mobile platform, or agent workflow?', 'I’m open to AI Engineer, AI Agent Engineer, Android Architect, and AI-powered mobile product roles.']}[kind]; return <Layout><Seo title={`${content[0]} — Ashish Singh`} description={content[1]} /><main id="main-content" className="section-shell pt-40"><SectionTitle level={1} eyebrow={content[0]} title={content[1]} copy={content[2]} /><div className="mt-10 flex flex-wrap gap-3"><a className="button" href={`mailto:${siteConfig.email}`}><Mail size={17} aria-hidden="true" />{siteConfig.email}</a><a className="button button-quiet" href={siteConfig.github} target="_blank" rel="noreferrer">GitHub <span className="sr-only">(opens in a new tab)</span></a><span className="button button-quiet text-stone-500">{missingLinkedIn}</span></div></main></Layout> }
 
-        <motion.section id="work" className="section-shell" {...reveal}>
-          <SectionTitle eyebrow="01 / Selected work" title="Engineering that holds up under pressure." copy="One named case study, supported by the architectural and operational disciplines behind it." />
-          <div className="mt-10 grid auto-rows-[minmax(220px,auto)] gap-4 md:grid-cols-3">
-            {workCards.map((card) => {
-              const Icon = card.icon
-              return <motion.article key={card.title} whileHover={reducedMotion ? undefined : { y: -6 }} transition={{ type: 'spring', stiffness: 320, damping: 22 }} className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] p-6 backdrop-blur-sm transition-colors hover:border-white/25 sm:p-7 ${card.className}`}>
-                <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${card.accent} opacity-60 transition-opacity duration-500 group-hover:opacity-100`} />
-                <div className="relative flex h-full flex-col">
-                  <div className="flex items-start justify-between gap-5"><p className="eyebrow">{card.eyebrow}</p><Icon className="text-stone-300 transition-transform duration-300 group-hover:scale-110 group-hover:text-white" size={24} aria-hidden="true" /></div>
-                  <div className="mt-auto pt-14"><h3 className="text-2xl font-medium tracking-[-0.04em] text-stone-100">{card.title}</h3><p className="mt-3 max-w-xl text-sm leading-6 text-stone-400">{card.description}</p><div className="mt-6 flex flex-wrap gap-2">{card.tags.map((tag) => <span key={tag} className="rounded-full border border-white/10 bg-black/15 px-2.5 py-1 text-[11px] text-stone-300">{tag}</span>)}</div></div>
-                </div>
-              </motion.article>
-            })}
-          </div>
-        </motion.section>
-
-        <motion.section id="expertise" className="section-shell pt-0" {...reveal}>
-          <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.055] to-white/[0.02] p-6 sm:p-10 lg:p-12">
-            <SectionTitle eyebrow="02 / Expertise" title="Deep in the stack. Clear at the system level." />
-            <div className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
-              {skillGroups.map((group, groupIndex) => <div key={group.title} className="relative"><span className="text-sm text-violet-200">0{groupIndex + 1}</span><h3 className="mt-3 text-xl font-medium tracking-[-0.03em]">{group.title}</h3><ul className="mt-5 space-y-3">{group.skills.map((skill) => <li key={skill} className="flex items-center gap-2.5 text-sm text-stone-400"><ChevronRight size={14} className="text-violet-300" aria-hidden="true" />{skill}</li>)}</ul></div>)}
-            </div>
-          </div>
-        </motion.section>
-
-        <motion.section id="experience" className="section-shell pt-0" {...reveal}>
-          <SectionTitle eyebrow="03 / Career" title="Fourteen years of building forward." copy="A progression through hands-on mobile engineering, technical leadership, and platform-scale systems work." />
-          <div className="mt-10 border-t border-white/10">
-            {career.map(([period, role, company]) => <div key={`${period}-${company}`} className="grid gap-2 border-b border-white/10 py-5 transition-colors hover:bg-white/[0.025] sm:grid-cols-[10rem_1fr_auto] sm:items-center sm:gap-6 sm:px-3"><p className="text-xs font-medium tracking-wide text-stone-500">{period}</p><h3 className="text-base font-medium text-stone-200">{role}</h3><p className="text-sm text-stone-400">{company}</p></div>)}
-          </div>
-        </motion.section>
-
-        <motion.section id="contact" className="px-5 pb-5 pt-12 sm:px-8 lg:px-12" {...reveal}>
-          <div className="mx-auto max-w-6xl rounded-3xl border border-violet-200/15 bg-[radial-gradient(circle_at_75%_20%,rgba(167,139,250,.2),transparent_35%),linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.025))] px-6 py-12 sm:px-10 sm:py-16 lg:px-14">
-            <Sparkles className="text-violet-200" size={25} aria-hidden="true" />
-            <h2 className="mt-6 max-w-3xl text-balance text-4xl font-medium tracking-[-0.06em] sm:text-6xl">Have a complex mobile problem worth solving?</h2>
-            <p className="mt-5 max-w-xl text-base leading-7 text-stone-400 sm:text-lg">I’m open to conversations about Android platform architecture, performance engineering, and agentic AI in mobile ecosystems.</p>
-            <div className="mt-8 flex flex-wrap gap-3"><a className="button" href={`mailto:${EMAIL}`}><Mail size={17} aria-hidden="true" />{EMAIL}</a><a className="button button-quiet" href="https://github.com/ashishsingh009" target="_blank" rel="noreferrer"><GitFork size={17} aria-hidden="true" />GitHub <ArrowUpRight size={16} aria-hidden="true" /></a></div>
-          </div>
-        </motion.section>
-      </main>
-      <footer className="px-5 py-8 sm:px-8 lg:px-12"><div className="mx-auto flex max-w-6xl flex-col gap-3 border-t border-white/10 pt-6 text-xs text-stone-500 sm:flex-row sm:items-center sm:justify-between"><p>© {new Date().getFullYear()} Ashish Singh. Built with intent.</p><a className="transition-colors hover:text-stone-300" href="https://linktr.ee/RealAshish" target="_blank" rel="noreferrer">More ways to connect <ArrowUpRight className="inline" size={12} aria-hidden="true" /></a></div></footer>
-    </div>
-  )
-}
+function App() { const initialPath = new URLSearchParams(window.location.search).get('route') || window.location.pathname; const [path, setPath] = useState(initialPath); useEffect(() => { const onPop = () => setPath(new URLSearchParams(window.location.search).get('route') || window.location.pathname); window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop) }, []); const normalized = path.replace(/^\/portfolio/, '').replace(/\/$/, '') || '/'; if (normalized === '/projects') return <ProjectsPage />; if (normalized.startsWith('/projects/')) { const project = projects.find((item) => item.slug === normalized.split('/')[2]); return project ? <CaseStudyPage project={project} /> : <ProjectsPage /> } if (normalized === '/about') return <SimplePage kind="about" />; if (normalized === '/notes') return <SimplePage kind="notes" />; if (normalized === '/contact') return <SimplePage kind="contact" />; return <HomePage /> }
 
 export default App

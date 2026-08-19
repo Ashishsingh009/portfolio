@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Loading portfolio</title></head>
+  <body>
+    <script>
+      const base = '/portfolio/';
+      const route = window.location.pathname.startsWith(base) ? window.location.pathname.slice(base.length) : '';
+      window.location.replace(base + '?route=/' + route + window.location.search + window.location.hash);
+    </script>
+  </body>
+</html>
