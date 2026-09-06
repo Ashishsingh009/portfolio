@@ -14,6 +14,7 @@
 
 @layer components {
   .skip-link { @apply fixed left-4 top-4 z-[60] -translate-y-24 rounded-lg bg-stone-100 px-4 py-2 text-sm font-semibold text-stone-950 transition-transform focus:translate-y-0; }
+  .sr-only { @apply absolute h-px w-px overflow-hidden whitespace-nowrap border-0 p-0; clip-path: inset(50%); }
 }
 
 @layer components {
