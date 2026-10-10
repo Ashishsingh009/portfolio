@@ -1,4 +1,14 @@
-# Recruiter copy — résumé and cover letter
+# Recruiter copy — index
+
+Canonical résumé: [resume.md](resume.md) · PDF: `public/resume.pdf`  
+Cover letter: [cover-letter.md](cover-letter.md)  
+LinkedIn + GitHub: [linkedin.md](linkedin.md)  
+DMs: [outreach/cold-dm.md](outreach/cold-dm.md)  
+50 startups: [outreach/funded-startups-90d.md](outreach/funded-startups-90d.md)
+
+---
+
+# Recruiter copy — résumé and cover letter (short form)
 
 Use this with the portfolio. One email, one headline, AI in its own section, no invented metrics.
 
