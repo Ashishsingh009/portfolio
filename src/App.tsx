@@ -90,6 +90,11 @@ function navigate(href: string) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+function assetUrl(path: string) {
+  const base = window.location.pathname.startsWith('/portfolio') ? '/portfolio' : ''
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`
+}
+
 function StatusChip({ status }: { status: EvidenceStatus }) {
   return (
     <span className="rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[11px] uppercase tracking-[0.12em] text-stone-300">
@@ -446,6 +451,11 @@ function HomePage() {
                   >
                     Case study
                   </a>
+                  {project.demoUrl && (
+                    <a className="text-sm font-medium text-violet-200 hover:text-white" href={assetUrl(project.demoUrl)} target="_blank" rel="noreferrer">
+                      Live demo <span className="sr-only">(opens in a new tab)</span>
+                    </a>
+                  )}
                   {project.githubUrl && (
                     <a className="text-sm text-stone-400 hover:text-white" href={project.githubUrl} target="_blank" rel="noreferrer">
                       GitHub <span className="sr-only">(opens in a new tab)</span>
@@ -544,16 +554,23 @@ function ProjectCard({ project }: { project: Project }) {
           </span>
         ))}
       </div>
-      <a
-        className="button button-quiet mt-8"
-        href={`/projects/${project.slug}`}
-        onClick={(e) => {
-          e.preventDefault()
-          navigate(`/projects/${project.slug}`)
-        }}
-      >
-        Read case study <ArrowUpRight size={15} aria-hidden="true" />
-      </a>
+      <div className="mt-8 flex flex-wrap gap-3">
+        <a
+          className="button button-quiet"
+          href={`/projects/${project.slug}`}
+          onClick={(e) => {
+            e.preventDefault()
+            navigate(`/projects/${project.slug}`)
+          }}
+        >
+          Read case study <ArrowUpRight size={15} aria-hidden="true" />
+        </a>
+        {project.demoUrl && (
+          <a className="button button-quiet" href={assetUrl(project.demoUrl)} target="_blank" rel="noreferrer">
+            Live demo
+          </a>
+        )}
+      </div>
     </article>
   )
 }
@@ -609,8 +626,8 @@ function CaseStudyPage({ project }: { project: Project }) {
             </a>
           )}
           {project.demoUrl && (
-            <a className="button button-quiet" href={project.demoUrl} target="_blank" rel="noreferrer">
-              Live demo
+            <a className="button button-quiet" href={assetUrl(project.demoUrl)} target="_blank" rel="noreferrer">
+              Live demo <span className="sr-only">(opens in a new tab)</span>
             </a>
           )}
         </div>

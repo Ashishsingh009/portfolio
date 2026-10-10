@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ANR Triage Agent — Ashish Singh</title>
+  <meta name="description" content="Paste an Android log. Heuristic triage: ANR, leak, deadlock, or need more signal. 10/10 on a labeled fixture set." />
+  <style>
+    :root { --bg:#0a0a0a; --card:#141414; --line:#2a2a2a; --text:#f5f5f4; --muted:#a8a29e; --accent:#c4b5fd; --ok:#86efac; --warn:#fcd34d; --bad:#fca5a5; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; background:var(--bg); color:var(--text); }
+    main { max-width: 980px; margin: 0 auto; padding: 32px 20px 80px; }
+    a { color: var(--accent); }
+    h1 { font-size: clamp(28px, 5vw, 44px); letter-spacing: -0.04em; margin: 8px 0 12px; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .16em; font-size: 11px; color: var(--muted); font-weight: 700; }
+    .lead { color: var(--muted); line-height: 1.6; max-width: 640px; }
+    .stats { display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin: 24px 0; }
+    .stat { border:1px solid var(--line); border-radius: 16px; padding: 14px; background: var(--card); }
+    .stat strong { display:block; font-size: 28px; }
+    .stat span { color: var(--muted); font-size: 12px; }
+    textarea { width:100%; min-height: 180px; background:#111; color:var(--text); border:1px solid var(--line); border-radius: 12px; padding: 12px; font-family: ui-monospace, monospace; font-size: 12px; }
+    button { background: #e7e5e4; color:#111; border:0; border-radius: 10px; padding: 10px 14px; font-weight: 700; cursor: pointer; }
+    button.ghost { background: transparent; color: var(--text); border:1px solid var(--line); }
+    .row { display:flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .result { margin-top: 16px; border:1px solid var(--line); border-radius: 16px; padding: 16px; background: var(--card); display:none; }
+    .badge { display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .anr { background:#3f1d1d; color: var(--bad); }
+    .leak { background:#3b2a10; color: var(--warn); }
+    .deadlock { background:#1e1b4b; color: var(--accent); }
+    .unknown { background:#1c1917; color: var(--muted); }
+    table { width:100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+    td, th { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; }
+    .ok { color: var(--ok); }
+    .fail { color: var(--bad); }
+    footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Prototype · measured · no API key</p>
+  <h1>ANR Triage Agent</h1>
+  <p class="lead">Android teams drown in traces. This in-browser heuristic classifies a log as <strong>ANR</strong>, <strong>memory leak</strong>, <strong>deadlock</strong>, or <strong>need more signal</strong>, then names the next probe. Same failure modes I owned on Verizon Cloud at 100M+ users.</p>
+  <div class="stats">
+    <div class="stat"><strong>10/10</strong><span>labeled fixtures classified correctly</span></div>
+    <div class="stat"><strong>&lt;50 ms</strong><span>median triage on this page (heuristic)</span></div>
+    <div class="stat"><strong>4</strong><span>classes: ANR, leak, deadlock, unknown</span></div>
+  </div>
+  <p class="eyebrow">Paste a logcat / ANR dump</p>
+  <textarea id="log" placeholder="Paste logcat, traces.txt, or a tombstone excerpt…"></textarea>
+  <div class="row">
+    <button id="run" type="button">Triage</button>
+    <button class="ghost" id="eval" type="button">Run 10-trace eval</button>
+    <button class="ghost" id="sample" type="button">Load sample ANR</button>
+  </div>
+  <div class="result" id="result"></div>
+  <div class="result" id="evalOut" style="display:block">
+    <p class="eyebrow">Eval set (checked into this page)</p>
+    <p class="lead">Precision is computed against 10 fixtures I labeled. This is a lab number, not a production SLO.</p>
+    <div id="evalTable"></div>
+  </div>
+  <footer>
+    Ashish Singh · <a href="../../">portfolio</a> · heuristic only; an LLM hop is optional and off by default so this demo stays live without secrets.
+  </footer>
+</main>
+<script>
+const CLASSES = {
+  anr: { label: 'ANR', cls: 'anr', next: 'Grab traces.txt + dump of the frozen main thread. Confirm Input dispatching timed out vs Broadcast of Intent. Check Binder and GC pauses around the freeze.' },
+  leak: { label: 'Memory leak / pressure', cls: 'leak', next: 'Capture a heap dump, look for Activity/Context retained after destroy, and watch Allocations + GC time in the 10s before jank.' },
+  deadlock: { label: 'Deadlock / lock convoy', cls: 'deadlock', next: 'Diff blocked-on chains in the ANR dump. If two threads wait on each other, reproduce with thread timings and a strict-mode lock dump.' },
+  unknown: { label: 'Need more signal', cls: 'unknown', next: 'This log does not name a freeze, OOM, or lock cycle. Re-run with ANR traces + meminfo + 30s of logcat around the user report.' }
+};
+
+function classify(text) {
+  const t = (text || '').toLowerCase();
+  const signals = [];
+  const has = (re, name) => { if (re.test(t)) { signals.push(name); return true; } return false; };
+  const anr = has(/input dispatching timed out|not responding|anr in |broadcast of intent.*timed out|am_anr/, 'anr-timeout');
+  const deadlock = has(/deadlock|blocked on|waiting to lock|monitor contention|circular lock/, 'lock-cycle');
+  const leak = has(/outofmemoryerror|has leaked window|activityleak|gc_for_alloc|low on memory|heap dumped/, 'memory');
+  let key = 'unknown';
+  if (anr && deadlock) key = 'deadlock';
+  else if (anr) key = 'anr';
+  else if (deadlock) key = 'deadlock';
+  else if (leak) key = 'leak';
+  return { key, ...CLASSES[key], signals, chars: t.length };
+}
+
+const FIXTURES = [
+  { id: 'F01', expect: 'anr', log: 'ANR in com.vcast.mediamanager (com.vcast.mediamanager/.ui.SyncActivity)\nReason: Input dispatching timed out (Waiting to send non-key event because the touched window has not finished processing)\nLoad: 4.2' },
+  { id: 'F02', expect: 'anr', log: 'am_anr : [0,1234,com.example.app,952746872,Broadcast of Intent { act=android.intent.action.BOOT_COMPLETED } timed out]' },
+  { id: 'F03', expect: 'leak', log: 'java.lang.OutOfMemoryError: Failed to allocate a 48MB allocation\nGC_FOR_ALLOC freed 12MB\nProcess: com.vcast.mediamanager\nheap dumped to /data/anr/heap.hprof' },
+  { id: 'F04', expect: 'leak', log: 'ActivityLeak: com.example.MainActivity has leaked window DecorView\nlow on memory: 91% used' },
+  { id: 'F05', expect: 'deadlock', log: 'ANR in com.example/.SyncService\n"main" prio=5 tid=1 Blocked\n  waiting to lock <0x12> held by thread 18\n"binder:18" waiting to lock <0x11> held by thread 1\nPossible deadlock' },
+  { id: 'F06', expect: 'deadlock', log: 'monitor contention with owner main (blocked on Binder)\ncircular lock between Thread-12 and binder:3' },
+  { id: 'F07', expect: 'unknown', log: 'D/OkHttp: --> GET https://api.example.com/v1/ping\nI/Choreographer: Skipped 2 frames\nD/Network: 200 OK' },
+  { id: 'F08', expect: 'anr', log: 'Reason: executing service com.example/.UploadService\nApp not responding for 20s\nCPU usage from 0ms to 5234ms later:' },
+  { id: 'F09', expect: 'leak', log: 'Fatal Exception: java.lang.OutOfMemoryError\n    at dalvik.system.VMRuntime.newNonMovableArray\nGC_FOR_ALLOC times=14' },
+  { id: 'F10', expect: 'unknown', log: 'E/User: login failed 401\nW/Firebase: token refresh\nI/ActivityManager: Start proc com.example for activity' }
+];
+
+function renderResult(c, ms) {
+  const el = document.getElementById('result');
+  el.style.display = 'block';
+  el.innerHTML = `<span class="badge ${c.cls}">${c.label}</span>
+    <p>${c.next}</p>
+    <p class="lead">Signals: ${c.signals.join(', ') || 'none'} · ${c.chars} chars · ${ms.toFixed(1)} ms</p>`;
+}
+
+document.getElementById('run').onclick = () => {
+  const t0 = performance.now();
+  const c = classify(document.getElementById('log').value);
+  renderResult(c, performance.now() - t0);
+};
+
+document.getElementById('sample').onclick = () => {
+  document.getElementById('log').value = FIXTURES[0].log;
+  document.getElementById('run').click();
+};
+
+function runEval() {
+  const times = [];
+  const rows = FIXTURES.map(f => {
+    const t0 = performance.now();
+    const c = classify(f.log);
+    const ms = performance.now() - t0;
+    times.push(ms);
+    const ok = c.key === f.expect;
+    return { ...f, got: c.key, ok, ms };
+  });
+  times.sort((a,b) => a-b);
+  const median = times[Math.floor(times.length/2)];
+  const correct = rows.filter(r => r.ok).length;
+  document.getElementById('evalTable').innerHTML = `
+    <p><strong>${correct}/${rows.length}</strong> correct · median <strong>${median.toFixed(2)} ms</strong></p>
+    <table><thead><tr><th>ID</th><th>Expected</th><th>Got</th><th>ms</th><th></th></tr></thead>
+    <tbody>${rows.map(r => `<tr><td>${r.id}</td><td>${r.expect}</td><td>${r.got}</td><td>${r.ms.toFixed(2)}</td><td class="${r.ok?'ok':'fail'}">${r.ok?'pass':'fail'}</td></tr>`).join('')}</tbody></table>`;
+}
+
+document.getElementById('eval').onclick = runEval;
+runEval();
+</script>
+</body>
+</html>

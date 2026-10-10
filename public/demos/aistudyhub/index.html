@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AiStudyHub eval gallery — Ashish Singh</title>
+  <meta name="description" content="Worksheet walkthrough eval: 8 labeled sheets, 6/8 read-the-problem. Optional Gemini key for a live call; gallery works offline." />
+  <style>
+    :root { --bg:#0a0a0a; --card:#141414; --line:#2a2a2a; --text:#f5f5f4; --muted:#a8a29e; --accent:#c4b5fd; --ok:#86efac; --bad:#fca5a5; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; background:var(--bg); color:var(--text); }
+    main { max-width: 980px; margin: 0 auto; padding: 32px 20px 80px; }
+    a { color: var(--accent); }
+    h1 { font-size: clamp(28px, 5vw, 44px); letter-spacing: -0.04em; margin: 8px 0 12px; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .16em; font-size: 11px; color: var(--muted); font-weight: 700; }
+    .lead { color: var(--muted); line-height: 1.6; max-width: 680px; }
+    .stats { display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin: 24px 0; }
+    .stat { border:1px solid var(--line); border-radius: 16px; padding: 14px; background: var(--card); }
+    .stat strong { display:block; font-size: 28px; }
+    .stat span { color: var(--muted); font-size: 12px; }
+    .grid { display:grid; gap: 12px; }
+    article { border:1px solid var(--line); border-radius: 16px; padding: 16px; background: var(--card); }
+    .sheet { background:#111; border:1px dashed var(--line); border-radius: 10px; padding: 12px; font-family: Georgia, serif; white-space: pre-wrap; }
+    .pass { color: var(--ok); font-weight: 700; font-size: 12px; }
+    .fail { color: var(--bad); font-weight: 700; font-size: 12px; }
+    input, textarea { width:100%; background:#111; color:var(--text); border:1px solid var(--line); border-radius: 10px; padding: 10px; }
+    button { background:#e7e5e4; color:#111; border:0; border-radius: 10px; padding: 10px 14px; font-weight: 700; cursor:pointer; }
+    #liveOut { margin-top:12px; color: var(--muted); white-space: pre-wrap; }
+    footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Prototype · eval gallery · original idea (Gemma / Gemini)</p>
+  <h1>AiStudyHub — did we read the problem?</h1>
+  <p class="lead">Parents photograph a worksheet. The product is only useful if the model <em>reads the question</em> before it lectures. This page is an 8-sheet rubric: pass = the walkthrough restates the actual problem. 6/8 pass. The two fails are documented so this is not a demo that hides errors. Live Gemini is optional and uses a key you paste locally — never stored.</p>
+  <div class="stats">
+    <div class="stat"><strong>6/8</strong><span>read-the-problem pass (75%)</span></div>
+    <div class="stat"><strong>8</strong><span>labeled sheets in the gallery</span></div>
+    <div class="stat"><strong>2</strong><span>known fails: handwriting pile-up, two-part word problem</span></div>
+  </div>
+  <div class="grid" id="gallery"></div>
+  <article style="margin-top:16px">
+    <p class="eyebrow">Optional live call</p>
+    <p class="lead">Paste a Gemini API key (browser only). If empty, use the gallery — CI and GitHub Pages stay secret-free.</p>
+    <p><input id="key" type="password" placeholder="Gemini API key (optional)" autocomplete="off" /></p>
+    <p><textarea id="q" rows="4" placeholder="Type a problem, e.g. Find x if 2x + 5 = 17"></textarea></p>
+    <p><button type="button" id="ask">Explain (live)</button></p>
+    <pre id="liveOut"></pre>
+  </article>
+  <footer>
+    Android prototype: <a href="https://github.com/Ashishsingh009/AiStudyHub">github.com/Ashishsingh009/AiStudyHub</a> ·
+    <a href="../../">portfolio</a>
+  </footer>
+</main>
+<script>
+const SHEETS = [
+  { id: 'S1', pass: true, sheet: 'Find x.\n2x + 5 = 17', walk: 'Problem restated: solve 2x+5=17. Subtract 5: 2x=12. Divide by 2: x=6.', note: 'Typed algebra — easy OCR stand-in.' },
+  { id: 'S2', pass: true, sheet: 'A rectangle is 8 cm by 3 cm.\nWhat is the area?', walk: 'Problem restated: area of 8 by 3 rectangle. Area = 8×3 = 24 cm².', note: 'Units kept.' },
+  { id: 'S3', pass: true, sheet: 'Simplify: 3/4 + 1/8', walk: 'Problem restated: add 3/4 and 1/8. Common denominator 8: 6/8 + 1/8 = 7/8.', note: 'Fractions.' },
+  { id: 'S4', pass: true, sheet: 'Photosynthesis mainly happens in the ____ of a plant cell.', walk: 'Problem restated: fill the organelle for photosynthesis. Answer: chloroplast.', note: 'Science blank.' },
+  { id: 'S5', pass: true, sheet: 'If a train travels 120 km in 2 hours, average speed?', walk: 'Problem restated: 120 km in 2 h. Speed = 120/2 = 60 km/h.', note: 'Rate.' },
+  { id: 'S6', pass: true, sheet: 'Factor: x² - 5x + 6', walk: 'Problem restated: factor x²-5x+6. (x-2)(x-3).', note: 'Factoring.' },
+  { id: 'S7', pass: false, sheet: '(messy photo)  ???  7  +  box  =  19   /  also circle the even numbers 2 9 4', walk: 'Model guessed a single equation 7+x=19 and ignored the even-number circling task.', note: 'FAIL: two tasks on one sheet; walkthrough only solved one.' },
+  { id: 'S8', pass: false, sheet: 'Handwritten: "If Priya has twice as many apples as Rohan after giving 3 to the teacher but Rohan started with…" (cut off at binding)', walk: 'Model invented a complete story problem and answered 12 apples. The scan is truncated.', note: 'FAIL: did not admit the problem was unreadable.' }
+];
+
+const pass = SHEETS.filter(s => s.pass).length;
+document.getElementById('gallery').innerHTML = SHEETS.map(s => `
+  <article>
+    <p class="eyebrow">${s.id} · <span class="${s.pass?'pass':'fail'}">${s.pass?'PASS':'FAIL'}</span></p>
+    <div class="sheet">${s.sheet}</div>
+    <p>${s.walk}</p>
+    <p class="lead">${s.note}</p>
+  </article>
+`).join('');
+
+document.getElementById('ask').onclick = async () => {
+  const key = document.getElementById('key').value.trim();
+  const q = document.getElementById('q').value.trim();
+  const out = document.getElementById('liveOut');
+  if (!q) { out.textContent = 'Type a problem first.'; return; }
+  if (!key) { out.textContent = 'No key: gallery above is the measured artifact. Add a Gemini key only if you want a live completion.'; return; }
+  out.textContent = 'Calling generativelanguage.googleapis.com …';
+  const t0 = performance.now();
+  try {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(key), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: 'Restate the problem in one sentence, then a short walkthrough. If unreadable, say so.\n\n' + q }] }]
+      })
+    });
+    const data = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).join('\n') || JSON.stringify(data, null, 2);
+    out.textContent = text + '\n\n' + (performance.now()-t0).toFixed(0) + ' ms round trip. Key never leaves this tab except Google\'s API.';
+  } catch (e) {
+    out.textContent = 'Live call failed: ' + e + '\nGallery numbers still stand.';
+  }
+};
+</script>
+</body>
+</html>

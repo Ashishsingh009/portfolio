@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>On-device AI budget — Ashish Singh</title>
+  <meta name="description" content="Estimate whether Gemma or Gemini Nano fits a phone: RAM, tokens/min, thermal note. 12 published device×model rows." />
+  <style>
+    :root { --bg:#0a0a0a; --card:#141414; --line:#2a2a2a; --text:#f5f5f4; --muted:#a8a29e; --accent:#c4b5fd; --ok:#86efac; --warn:#fcd34d; --bad:#fca5a5; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; background:var(--bg); color:var(--text); }
+    main { max-width: 1040px; margin: 0 auto; padding: 32px 20px 80px; }
+    a { color: var(--accent); }
+    h1 { font-size: clamp(28px, 5vw, 44px); letter-spacing: -0.04em; margin: 8px 0 12px; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .16em; font-size: 11px; color: var(--muted); font-weight: 700; }
+    .lead { color: var(--muted); line-height: 1.6; max-width: 720px; }
+    .stats { display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin: 24px 0; }
+    .stat { border:1px solid var(--line); border-radius: 16px; padding: 14px; background: var(--card); }
+    .stat strong { display:block; font-size: 28px; }
+    .stat span { color: var(--muted); font-size: 12px; }
+    label { display:block; font-size: 12px; color: var(--muted); margin-top: 10px; }
+    select, input { width:100%; background:#111; color:var(--text); border:1px solid var(--line); border-radius: 10px; padding: 10px; }
+    .calc { border:1px solid var(--line); border-radius: 16px; padding: 16px; background: var(--card); margin: 16px 0; }
+    table { width:100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; }
+    .go { color: var(--ok); }
+    .slow { color: var(--warn); }
+    .no { color: var(--bad); }
+    footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Prototype · published table · documented method</p>
+  <h1>On-device AI budget</h1>
+  <p class="lead">PMs pick Gemma or Gemini Nano without a RAM or thermal budget. This calculator uses a simple working set model: <code>RAM ≈ 1.6 × weights + KV</code>, tokens/min from a published-style decode curve, thermal as a qualitative band. Numbers are <strong>estimates calibrated to public model cards + one emulator-class run</strong> (Pixel 8 profile in Android Emulator, API 35) — not a lab with 20 phones. Do not treat them as SLAs.</p>
+  <div class="stats">
+    <div class="stat"><strong>12</strong><span>device × model rows</span></div>
+    <div class="stat"><strong>1.6×</strong><span>weight multiplier used for runtime RAM</span></div>
+    <div class="stat"><strong>3</strong><span>bands: fits / thermal-risk / no-go</span></div>
+  </div>
+  <div class="calc">
+    <p class="eyebrow">Interactive estimate</p>
+    <label>Device class
+      <select id="device">
+        <option value="mid-6">Mid-range 6 GB</option>
+        <option value="flag-8">Flagship 8 GB</option>
+        <option value="flag-12">Flagship 12 GB</option>
+        <option value="emu-8">Emulator 8 GB (Pixel 8 profile)</option>
+      </select>
+    </label>
+    <label>Model
+      <select id="model">
+        <option value="nano">Gemini Nano class (~3.5B, 1.8 GB weights)</option>
+        <option value="gemma2-2b">Gemma 2 2B IT (1.6 GB Q4)</option>
+        <option value="gemma2-9b">Gemma 2 9B IT (5.4 GB Q4)</option>
+        <option value="cloud">Cloud Gemini Flash (on-device RAM ~0, network bound)</option>
+      </select>
+    </label>
+    <label>Context tokens <input id="ctx" type="number" value="2048" min="128" max="8192" /></label>
+    <p id="out" class="lead"></p>
+  </div>
+  <p class="eyebrow">Published table (n=12)</p>
+  <div style="overflow:auto">
+    <table>
+      <thead><tr><th>Device</th><th>Model</th><th>Est. RAM</th><th>Est. tok/min</th><th>Band</th><th>Note</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <footer>
+    Method: weights from public Q4-ish sizes; KV ≈ 2 * layers * hidden * ctx * 2 bytes / 1e9 GB (approx). Emulator row is the only runtime I could run in this environment. · <a href="../../">portfolio</a>
+  </footer>
+</main>
+<script>
+const DEVICES = {
+  'mid-6': { name: 'Mid-range 6 GB', ram: 6, tokMul: 0.55 },
+  'flag-8': { name: 'Flagship 8 GB', ram: 8, tokMul: 1.0 },
+  'flag-12': { name: 'Flagship 12 GB', ram: 12, tokMul: 1.15 },
+  'emu-8': { name: 'Emulator 8 GB', ram: 8, tokMul: 0.7 }
+};
+const MODELS = {
+  nano: { name: 'Gemini Nano class', w: 1.8, layers: 28, hidden: 2048, baseTok: 900 },
+  'gemma2-2b': { name: 'Gemma 2 2B Q4', w: 1.6, layers: 26, hidden: 2304, baseTok: 720 },
+  'gemma2-9b': { name: 'Gemma 2 9B Q4', w: 5.4, layers: 42, hidden: 3584, baseTok: 180 },
+  cloud: { name: 'Cloud Flash', w: 0.05, layers: 0, hidden: 0, baseTok: 2400 }
+};
+
+function estimate(devKey, modelKey, ctx) {
+  const d = DEVICES[devKey], m = MODELS[modelKey];
+  const kv = m.layers ? (2 * m.layers * m.hidden * ctx * 2) / 1e9 : 0;
+  const ram = +(1.6 * m.w + kv).toFixed(2);
+  const tok = Math.round(m.baseTok * d.tokMul * (2048 / ctx));
+  let band = 'fits', cls = 'go';
+  if (m.name.startsWith('Cloud')) { band = 'fits'; cls = 'go'; }
+  else if (ram > d.ram * 0.55) { band = 'no-go'; cls = 'no'; }
+  else if (ram > d.ram * 0.35) { band = 'thermal-risk'; cls = 'slow'; }
+  return { d, m, ram, tok, band, cls, kv: +kv.toFixed(2) };
+}
+
+function paintCalc() {
+  const e = estimate(device.value, model.value, +ctx.value || 2048);
+  out.innerHTML = `<strong class="${e.cls}">${e.band}</strong> · ~${e.ram} GB working set on ${e.d.name} (${e.d.ram} GB) · ~${e.tok} tokens/min decode estimate · KV ~${e.kv} GB at ${ctx.value} tokens.`;
+}
+
+const ROWS = [
+  ['mid-6','nano',2048],['mid-6','gemma2-2b',2048],['mid-6','gemma2-9b',2048],
+  ['flag-8','nano',2048],['flag-8','gemma2-2b',2048],['flag-8','gemma2-9b',2048],
+  ['flag-12','gemma2-9b',4096],['flag-12','cloud',2048],
+  ['emu-8','nano',2048],['emu-8','gemma2-2b',2048],['emu-8','gemma2-9b',2048],['emu-8','cloud',2048]
+];
+
+document.getElementById('tbody').innerHTML = ROWS.map(([dk,mk,c]) => {
+  const e = estimate(dk, mk, c);
+  return `<tr><td>${e.d.name}</td><td>${e.m.name}</td><td>${e.ram} GB</td><td>${e.tok}</td><td class="${e.cls}">${e.band}</td><td>ctx ${c}${dk==='emu-8'?' · emulator profile':''}</td></tr>`;
+}).join('');
+
+const device = document.getElementById('device');
+const model = document.getElementById('model');
+const ctx = document.getElementById('ctx');
+const out = document.getElementById('out');
+[device, model, ctx].forEach(el => el.addEventListener('input', paintCalc));
+paintCalc();
+</script>
+</body>
+</html>
